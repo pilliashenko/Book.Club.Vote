@@ -50,10 +50,10 @@ conn_votes = st.connection("votes", type=GSheetsConnection)
 # --- 3. FETCH SESSIONS ---
 # We read the first tab of Nominations, which should act as our 'Directory'
 try:
-    directory_df = conn_nom.read(worksheet="Directory")
+    directory_df = conn_nom.read(worksheet="Directory", ttl=0)
     active_sessions = directory_df["Session"].tolist()
-except Exception:
-    st.error("Could not find the 'Directory' tab in the Nominations sheet.")
+except Exception as e:
+    st.error(f"Error reading Nominations sheet: {e}")
     st.stop()
 
 selected_session = st.selectbox("Select Voting Session:", active_sessions)
@@ -99,10 +99,10 @@ elif session_status.strip().upper() == "OPEN":
 
         # Pull the books from the specific session's tab in the Nominations sheet
         try:
-            books_df = conn_nom.read(worksheet=selected_session)
+            books_df = conn_nom.read(worksheet=selected_session, ttl=0)
             nominated_books = books_df["Book"].dropna().tolist()
-        except Exception:
-            st.error(f"Could not load the books for {selected_session}. Ensure there is a tab with this exact name.")
+        except Exception as e:
+            st.error(f"Error loading books: {e}")
             st.stop()
 
         # Eurovision Point System
