@@ -50,7 +50,7 @@ conn_votes = st.connection("votes", type=GSheetsConnection)
 # --- 3. FETCH SESSIONS ---
 # We read the first tab of Nominations, which should act as our 'Directory'
 try:
-    directory_df = conn_nom.read(worksheet="Directory", ttl=0)
+    directory_df = conn_nom.read(worksheet="Directory", ttl=60)
     active_sessions = directory_df["Session"].tolist()
 except Exception as e:
     st.error(f"Error reading Nominations sheet: {e}")
@@ -99,7 +99,7 @@ elif session_status.strip().upper() == "OPEN":
 
         # Pull the books from the specific session's tab in the Nominations sheet
         try:
-            books_df = conn_nom.read(worksheet=selected_session, ttl=0)
+            books_df = conn_nom.read(worksheet=selected_session, ttl=60)
             nominated_books = books_df["Book"].dropna().tolist()
         except Exception as e:
             st.error(f"Error loading books: {e}")
