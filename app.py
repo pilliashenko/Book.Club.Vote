@@ -46,8 +46,8 @@ def init_app_state():
     defaults = {
         "directory_df": None,
         "votes_df": None,
-        "books_cache": {},
-        "ballots": {},
+        "books_cache": {},      # {session_name: [book1, book2, ...]}
+        "ballots": {},          # {session_name: [rank1, rank2, ...]}
         "loaded_session": None,
     }
     for key, value in defaults.items():
@@ -158,6 +158,11 @@ current_user = st.session_state["username"]
 st.sidebar.success(f"Welcome back, **{current_user}**!")
 
 if st.sidebar.button("Log Out"):
+    keys_to_delete = [k for k in st.session_state.keys() if k.startswith("rank_widget::")]
+    for k in keys_to_delete:
+        del st.session_state[k]
+
+    st.session_state["ballots"] = {}
     st.session_state["password_correct"] = False
     st.session_state["username"] = ""
     st.rerun()
@@ -286,23 +291,17 @@ if session_status == "OPEN":
         EURO_POINTS = [12, 10, 8, 7, 6, 5, 4, 3, 2, 1]
         max_ranks = min(len(nominated_books), len(EURO_POINTS))
 
-        # Build ballot live from current widget values
         ballot = [""] * max_ranks
 
         for i in range(max_ranks):
             widget_key = f"rank_widget::{selected_session}::{i}"
 
-            # Books already used in higher ranks
             already_used_before = {b for b in ballot[:i] if b}
-
-            # Available books for this rank
             available_books = [b for b in nominated_books if b not in already_used_before]
             options = ["-- Select a Book --"] + available_books
 
-            # Current widget value, if any
             current_value = st.session_state.get(widget_key, "-- Select a Book --")
 
-            # If current value is no longer valid, reset it
             if current_value not in options:
                 current_value = "-- Select a Book --"
                 st.session_state[widget_key] = current_value
@@ -316,7 +315,6 @@ if session_status == "OPEN":
 
             ballot[i] = "" if choice == "-- Select a Book --" else choice
 
-        # Save current ballot for this session
         st.session_state["ballots"][selected_session] = ballot
 
         chosen_books = [b for b in ballot if b]
@@ -379,12 +377,6 @@ if session_status == "OPEN":
 
                 st.session_state["votes_df"] = updated_df
                 st.session_state["ballots"][selected_session] = [""] * max_ranks
-
-                # Clear widget values after successful submit
-                for i in range(max_ranks):
-                    widget_key = f"rank_widget::{selected_session}::{i}"
-                    if widget_key in st.session_state:
-                        st.session_state[widget_key] = "-- Select a Book --"
 
                 st.success("Ballot cast successfully!")
                 st.rerun()
