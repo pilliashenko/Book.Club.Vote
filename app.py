@@ -286,65 +286,40 @@ if session_status == "OPEN":
         EURO_POINTS = [12, 10, 8, 7, 6, 5, 4, 3, 2, 1]
         max_ranks = min(len(nominated_books), len(EURO_POINTS))
 
-        if selected_session not in st.session_state["ballots"]:
-            st.session_state["ballots"][selected_session] = [""] * max_ranks
-
-        ballot = st.session_state["ballots"][selected_session]
-
-        if len(ballot) != max_ranks:
-            ballot = (ballot + [""] * max_ranks)[:max_ranks]
-            st.session_state["ballots"][selected_session] = ballot
-
-        normalized_ballot = []
-        seen = set()
-        for choice in ballot:
-            if choice in nominated_books and choice not in seen:
-                normalized_ballot.append(choice)
-                seen.add(choice)
-            else:
-                normalized_ballot.append("")
-
-        st.session_state["ballots"][selected_session] = normalized_ballot
-        ballot = normalized_ballot
+        # Build ballot live from current widget values
+        ballot = [""] * max_ranks
 
         for i in range(max_ranks):
             widget_key = f"rank_widget::{selected_session}::{i}"
 
+            # Books already used in higher ranks
             already_used_before = {b for b in ballot[:i] if b}
+
+            # Available books for this rank
             available_books = [b for b in nominated_books if b not in already_used_before]
-
-            current_value = ballot[i] if ballot[i] in available_books else ""
-            display_value = current_value if current_value else "-- Select a Book --"
-
             options = ["-- Select a Book --"] + available_books
 
-            if widget_key not in st.session_state or st.session_state[widget_key] not in options:
-                st.session_state[widget_key] = display_value
+            # Current widget value, if any
+            current_value = st.session_state.get(widget_key, "-- Select a Book --")
 
-            st.selectbox(
+            # If current value is no longer valid, reset it
+            if current_value not in options:
+                current_value = "-- Select a Book --"
+                st.session_state[widget_key] = current_value
+
+            choice = st.selectbox(
                 f"Rank {i + 1} ({EURO_POINTS[i]} points)",
                 options,
+                index=options.index(current_value),
                 key=widget_key,
             )
 
-        updated_ballot = []
-        for i in range(max_ranks):
-            widget_key = f"rank_widget::{selected_session}::{i}"
-            value = st.session_state[widget_key]
-            updated_ballot.append("" if value == "-- Select a Book --" else value)
+            ballot[i] = "" if choice == "-- Select a Book --" else choice
 
-        cleaned_ballot = []
-        seen = set()
-        for choice in updated_ballot:
-            if choice in nominated_books and choice not in seen:
-                cleaned_ballot.append(choice)
-                seen.add(choice)
-            else:
-                cleaned_ballot.append("")
+        # Save current ballot for this session
+        st.session_state["ballots"][selected_session] = ballot
 
-        st.session_state["ballots"][selected_session] = cleaned_ballot
-
-        chosen_books = [b for b in cleaned_ballot if b]
+        chosen_books = [b for b in ballot if b]
 
         st.write(f"**Books currently ranked:** {len(chosen_books)}")
 
@@ -404,6 +379,12 @@ if session_status == "OPEN":
 
                 st.session_state["votes_df"] = updated_df
                 st.session_state["ballots"][selected_session] = [""] * max_ranks
+
+                # Clear widget values after successful submit
+                for i in range(max_ranks):
+                    widget_key = f"rank_widget::{selected_session}::{i}"
+                    if widget_key in st.session_state:
+                        st.session_state[widget_key] = "-- Select a Book --"
 
                 st.success("Ballot cast successfully!")
                 st.rerun()
